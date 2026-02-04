@@ -1,4 +1,4 @@
-<?php require_once 'dbconn.php'; ?>
+<?php require_once 'dataconnect.php'; ?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +23,7 @@
 <body>
 <nav class="navbar navbar-dark mb-5 shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="#"><i class="bi bi-cpu-fill text-info me-2"></i>TECH</a>
+        <a class="navbar-brand fw-bold" href="#"><i class="bi bi-cpu-fill text-info me-2"></i>TECH HUB</a>
         <?php if(isset($_SESSION['user_id'])): ?>
             <a href="logout.php" class="btn btn-outline-light btn-sm px-3">SIGN OUT</a>
         <?php endif; ?>
