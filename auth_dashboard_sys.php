@@ -6,6 +6,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 ?>
 
+<!-- Add SweetAlert2 Library for the Notification Cards -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="bg-white p-5 rounded-4 border-start border-5 border-primary shadow-sm mb-4">
     <h2 class="fw-bold">Welcome, <?php echo clean_string($_SESSION['username']); ?>!</h2>
     <p class="text-muted mb-0">Role: <span class="badge bg-primary"><?php echo strtoupper($_SESSION['role']); ?></span></p>
@@ -49,25 +52,48 @@ if (!isset($_SESSION['user_id'])) {
 
 <script>
 let uModal;
+
+// Utility function to show success notifications
+function notifySuccess(msg) {
+    Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: msg,
+        timer: 2000,
+        showConfirmButton: false
+    });
+}
+
+// Utility function to show error notifications
+function notifyError(msg) {
+    Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: msg
+    });
+}
+
 function load() {
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "api/auth_admin_api.php?action=list", true);
     xhr.onload = function() {
-        const res = JSON.parse(this.responseText);
-        if(!res.success) return alert(res.message);
-        let h = '';
-        res.users.forEach(u => {
-            h += `<tr>
-                <td class="fw-bold">${u.username}</td>
-                <td>${u.email}</td>
-                <td><span class="badge bg-secondary">${u.role}</span></td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-light border me-1" onclick='prepEdit(${JSON.stringify(u)})'><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="del(${u.id})"><i class="bi bi-trash"></i></button>
-                </td>
-            </tr>`;
-        });
-        document.getElementById('userTable').innerHTML = h;
+        try {
+            const res = JSON.parse(this.responseText);
+            if(!res.success) return notifyError(res.message);
+            let h = '';
+            res.users.forEach(u => {
+                h += `<tr>
+                    <td class="fw-bold">${u.username}</td>
+                    <td>${u.email}</td>
+                    <td><span class="badge bg-secondary">${u.role}</span></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-light border me-1" onclick='prepEdit(${JSON.stringify(u)})'><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="del(${u.id})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('userTable').innerHTML = h;
+        } catch(e) { console.error("Data parse error"); }
     };
     xhr.send();
 }
@@ -88,14 +114,28 @@ function prepEdit(u) {
     uModal.show();
 }
 
+// Updated Delete function with Confirmation Card
 function del(id) {
-    if(confirm('Delete?')) {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST","api/auth_admin_api.php?action=delete",true);
-        xhr.setRequestHeader("Content-Type","application/json");
-        xhr.onload = ()=> load();
-        xhr.send(JSON.stringify({id:id}));
-    }
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "This user will be permanently deleted!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete user'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST","api/auth_admin_api.php?action=delete",true);
+            xhr.setRequestHeader("Content-Type","application/json");
+            xhr.onload = () => {
+                notifySuccess('User has been deleted successfully.');
+                load();
+            };
+            xhr.send(JSON.stringify({id:id}));
+        }
+    });
 }
 
 window.addEventListener('load', function() {
@@ -105,10 +145,21 @@ window.addEventListener('load', function() {
     document.getElementById('adminForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const id = document.getElementById('m_id').value;
+        const actionType = id ? "update" : "add";
+        
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "api/auth_admin_api.php?action=" + (id ? "update" : "add"), true);
+        xhr.open("POST", "api/auth_admin_api.php?action=" + actionType, true);
         xhr.setRequestHeader("Content-Type","application/json");
-        xhr.onload = ()=> { uModal.hide(); load(); };
+        xhr.onload = ()=> { 
+            const res = JSON.parse(xhr.responseText);
+            if(res.success) {
+                uModal.hide(); 
+                load(); 
+                notifySuccess(actionType === "add" ? "User added successfully!" : "User updated successfully!");
+            } else {
+                notifyError(res.message);
+            }
+        };
         xhr.send(JSON.stringify({
             id:id,
             username:document.getElementById('m_u').value,
